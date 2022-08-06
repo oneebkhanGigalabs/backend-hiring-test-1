@@ -44,7 +44,7 @@ export class CallService {
         numDigits: 1,
         method: 'POST',
       })
-      gather.say('Please enter 1 for call forwrding or 2 for voice recording')
+      gather.say("Please enter '1' for call forwrding or '2' for voice recording")
       return voiceResponse.toString()
     } catch (error) {
       throw new BadRequestException(error)
@@ -55,10 +55,7 @@ export class CallService {
   async gather (inp: any) {
     try {
       // populating the call object in database
-      const created = await this.CallModel.findOne({
-        where: { sid: inp.CallSid },
-        select: ['sid'],
-      })
+      const created = await this.CallModel.findOne({sid: inp.CallSid})
       if (!created) {
         const log = await this.client.calls(inp.CallSid).fetch()
         await new this.CallModel({ ...log }).save()
@@ -70,29 +67,26 @@ export class CallService {
         switch (inp.Digits) {
           // forward call
           case '1':
+            await this.CallModel.findOneAndUpdate(
+              { sid: inp.CallSid },
+              { $set: { status: 'completed', forwarded: true } },
+            )
             twiml.say('Forwarding your call.')
             twiml.dial(MY_NUMBER, {
               action: '/call/endcall/',
             })
-            const firstCase = await this.client.calls(inp.CallSid).fetch()
-            if (firstCase && firstCase.sid) {
-              await this.CallModel.findOneAndUpdate(
-                { sid: inp.CallSid },
-                { $set: { status: 'completed', forwarded: true } },
-              )
-            }
             return twiml.toString()
             break
 
           // record call
           case '2':
-            twiml.say('Recording your call. Leave your message after the beep')
-            twiml.record()
-            twiml.hangup()
             await this.CallModel.findOneAndUpdate(
               { sid: inp.CallSid },
               { $set: { status: 'completed', forwarded: false } },
             )
+            twiml.say('Recording your call. Leave your message after the beep')
+            twiml.record()
+            twiml.hangup()
             return twiml.toString()
             break
 
@@ -135,17 +129,17 @@ export class CallService {
     }
   }
 
-  async downloadRecordings () {
+  async downloadRecordings (sid: string) {
     try {
       let finalRes = []
-      const call: any = await this.client.recordings.list()
-      console.log('call: ', call);
+      let call: any = await this.client.recordings.list()
+      if (sid) {
+        call = call.filter((e: any) => e.callSid === sid)
+      }
       if (call && call.length) {
         for (let index = 0; index < call.length; index++) {
           const element = call[index];
-          console.log('element: ', element);
           const url = `${element.mediaUrl}.mp3`
-          console.log('recording13123123: ');
           const { data } = await axios.get(url)
           finalRes.push(data)
         }
