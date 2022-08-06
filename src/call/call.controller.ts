@@ -61,8 +61,8 @@ export class CallController {
 
   // shows all the call logs
   @Get('/downloadRecordings')
-  async downloadRecordings() {
-    const res = await this.CallService.downloadRecordings();
+  async downloadRecordings(@Param() sid: any) {
+    const res = await this.CallService.downloadRecordings(sid && sid.sid);
     return res
   }
 }
